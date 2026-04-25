@@ -1,6 +1,23 @@
+version: '3.8'
+
 services:
-  canine-ai:
+  # FastAPI 백엔드 서비스
+  backend:
     build: .
-    container_name: canine-ai-neural-link
+    container_name: dog-speak-backend
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - ENV=development
+      - GEMINI_API_KEY=AIzaSyA-UR-CcIG1q4-0DxbeGDWGjGM7ccU1IvE # 실제 키는 나중에 .env로 관리하세요
+    depends_on:
+      - redis
+
+  # 세션 및 Bark-Key 임시 저장을 위한 Redis
+  redis:
+    image: redis:alpine
+    container_name: dog-speak-redis
+    ports:
+      - "6379:6379"
