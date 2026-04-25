@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>견기출넷 · 견주자격 능력시험 (Dog-TOEIC)</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #e8ecf4;
+      --bg-elevated: #f7f9fc;
+      --card: #ffffff;
+      --line: #d5dde8;
+      --text: #1a2233;
+      --muted: #5a6578;
+      --accent: #2b6cb0;
+      --accent-soft: #ebf2fa;
+      --accent-dim: rgba(43, 108, 176, 0.12);
+      --danger: #c53030;
+      --gnb-bg: #2b4c7e;
+      --gnb-hover: #355d96;
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Malgun Gothic", "Segoe UI", sans-serif;
+      background: var(--bg);
+    }
+    .portal-topbar {
+      background: #f0f3f9;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .portal-topbar-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 8px 18px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .portal-header {
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .portal-header-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .portal-brand {
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .portal-brand strong {
+      font-size: 1.55rem;
+      color: var(--accent);
+      letter-spacing: -0.03em;
+    }
+    .portal-brand span { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .portal-search {
+      flex: 1 1 220px;
+      max-width: 360px;
+    }
+    .portal-search input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+      background: var(--bg-elevated);
+      color: var(--text);
+    }
+    .portal-gnb {
+      background: var(--gnb-bg);
+      border-bottom: 2px solid #1e3a5f;
+    }
+    .portal-gnb-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 10px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+    .gnb-item {
+      background: transparent;
+      color: rgba(255,255,255,0.88);
+      border: 0;
+      border-radius: 0;
+      padding: 14px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: none;
+      position: relative;
+    }
+    .gnb-item:hover { background: var(--gnb-hover); color: #fff; }
+    .gnb-item.active {
+      background: rgba(255,255,255,0.12);
+      color: #fff;
+      box-shadow: inset 0 -3px 0 #ffd166;
+    }
+    .gnb-item.active::after { content: none; }
+    .portal-inner { max-width: 1120px; margin: 0 auto; padding: 22px 18px 40px; }
+    @media (min-width: 1200px) {
+      .portal-inner { max-width: min(1580px, calc(100vw - 28px)); }
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (min-width: 900px) and (max-width: 1199px) {
+      .main-grid { grid-template-columns: minmax(0, 1fr) 280px; }
+      .left-sticky-rail { display: none; }
+    }
+    @media (min-width: 1200px) {
+      .main-grid {
+        grid-template-columns: minmax(400px, 500px) minmax(0, 1fr) 260px;
+        gap: 22px;
+      }
+    }
+    .left-sticky-rail {
+      grid-column: 1;
+      min-width: 0;
+    }
+    @media (max-width: 899px) {
+      .left-sticky-rail { display: none; }
+    }
+    .sticky-youtube {
+      position: sticky;
+      top: 10px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 0 4px 14px rgba(15, 30, 60, 0.08);
+    }
+    .rail-h {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #1e3a5f;
+    }
+    .rail-video {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      height: 0;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #0f172a;
+      border: 1px solid var(--line);
+    }
+    .rail-video iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .rail-caption { margin: 10px 0 0; font-size: 12px; }
+    .rail-caption a { color: var(--accent); font-weight: 600; }
+    .portal-aside { display: flex; flex-direction: column; gap: 16px; }
+    .widget {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(15, 30, 60, 0.06);
+    }
+    .widget-h {
+      margin: 0;
+      padding: 10px 14px;
+      font-size: 14px;
+      background: linear-gradient(180deg, #f0f4fa 0%, #e8eef6 100%);
+      border-bottom: 1px solid var(--line);
+      color: #1e3a5f;
+    }
+    .widget-list { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    .widget-list li {
+      padding: 10px 14px;
+      border-bottom: 1px solid #eef2f7;
+      color: var(--muted);
+    }
+    .widget-list li:last-child { border-bottom: 0; }
+    .widget-list .w-name { color: var(--text); font-weight: 600; }
+    .widget-list .w-score { color: var(--accent); font-weight: 700; }
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .quick-tile {
+      display: block;
+      padding: 16px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: var(--card);
+      text-align: center;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(15, 30, 60, 0.05);
+      transition: border-color 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .quick-tile:hover { border-color: var(--accent); box-shadow: 0 4px 12px rgba(43,108,176,0.12); }
+    .quick-tile.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 2px 10px rgba(43,108,176,0.15); }
+    .quick-tile small { display: block; margin-top: 6px; font-size: 11px; font-weight: 500; color: var(--muted); }
+    .hero-exam {
+      background: linear-gradient(135deg, #2b6cb0 0%, #2c5282 50%, #1e3a5f 100%);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 22px 22px 20px;
+      margin-bottom: 18px;
+      border: 1px solid #1e3a5f;
+      box-shadow: 0 8px 24px rgba(30, 58, 95, 0.25);
+    }
+    .hero-exam h1 { color: #fff; margin: 0 0 8px; font-size: clamp(1.25rem, 3.5vw, 1.6rem); }
+    .hero-exam p { margin: 0; opacity: 0.92; font-size: 14px; line-height: 1.55; }
+    .hero-exam .hero-exam-note { margin-top: 12px; font-size: 12px; opacity: 0.75; }
+    .soju-notice {
+      display: flex;
+      align-items: center;
+      gap: clamp(14px, 3vw, 24px);
+      padding: 20px 24px;
+      margin: 0 0 24px;
+      border-radius: var(--radius);
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 12px rgba(15, 30, 60, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+    .soju-notice::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      background: #38a169;
+    }
+    .soju-notice img {
+      width: clamp(60px, 12vw, 90px);
+      height: auto;
+      flex-shrink: 0;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+    }
+    .soju-notice .soju-content {
+      flex: 1;
+    }
+    .soju-notice .soju-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #38a169;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .soju-notice .soju-copy {
+      margin: 0;
+      font-size: clamp(1rem, 2.5vw, 1.15rem);
+      line-height: 1.45;
+      color: #1a202c;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    @media (max-width: 480px) {
+      .soju-notice { flex-direction: column; text-align: center; padding: 18px 16px; }
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(15, 30, 60, 0.06);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover { border-color: #b8c5d9; box-shadow: 0 4px 16px rgba(15, 30, 60, 0.08); }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 26px 24px 24px;
+    }
+    .hero-inner { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; position: relative; z-index: 1; }
+    .hero-text { flex: 1 1 220px; min-width: 0; }
+    .hero-art {
+      flex: 0 0 auto;
+      width: min(42vw, 168px);
+      max-width: 180px;
+    }
+    .hero-art svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.4)); }
+    .hero-art .tail {
+      transform-origin: 88px 78px;
+      transform-box: fill-box;
+      animation: tailWag 2.2s ease-in-out infinite;
+    }
+    @keyframes tailWag {
+      0%, 100% { transform: rotate(-6deg); }
+      50% { transform: rotate(14deg); }
+    }
+    .paw-trail { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; opacity: 0.55; font-size: 15px; letter-spacing: 0.15em; }
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: -40%;
+      right: -15%;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    #panel-legacy .hero::before {
+      background: radial-gradient(circle, rgba(43, 108, 176, 0.12) 0%, transparent 70%);
+    }
+    .hero-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(108, 166, 255, 0.35);
+      padding: 6px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(1.35rem, 4vw, 1.75rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.2; }
+    h2 { margin: 0 0 12px; font-size: 1.05rem; font-weight: 800; color: #1e3a5f; letter-spacing: -0.01em; }
+    h3 { margin: 16px 0 8px; font-size: 0.85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .muted { color: var(--muted); line-height: 1.55; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    input[type="file"], textarea {
+      width: 100%;
+      background: var(--bg-elevated);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+    }
+    input[type="file"] { padding: 10px; cursor: pointer; }
+    textarea { min-height: 120px; resize: vertical; line-height: 1.5; }
+    textarea:focus, input[type="file"]:focus { outline: none; border-color: rgba(108, 166, 255, 0.55); box-shadow: 0 0 0 3px var(--accent-dim); }
+    button {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(43, 108, 176, 0.25);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    button:hover:not(:disabled) { transform: translateY(-1px); background: #3182ce; }
+    button:active:not(:disabled) { transform: translateY(0); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+    .status { font-size: 13px; color: var(--muted); min-height: 20px; margin-top: 10px; }
+    .result {
+      border-left: 4px solid var(--danger);
+      padding: 12px 14px 12px 16px;
+      background: #fff5f5;
+      border-radius: 0 8px 8px 0;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+    .code { background: #f4f6f9; border: 1px solid var(--line); border-radius: 8px; padding: 14px; font-family: ui-monospace, "Cascadia Code", monospace; font-size: 12px; white-space: pre-wrap; color: #3d4a5c; }
+    .video-card .video-wrap {
+      position: relative;
+      width: 100%;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #000;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    }
+    .video-card .video-wrap iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .video-caption { margin-top: 12px; font-size: 13px; }
+    .video-caption a { color: var(--accent); text-decoration: none; }
+    .video-caption a:hover { text-decoration: underline; }
+    .step-icon { font-size: 1.15em; margin-right: 6px; vertical-align: -0.08em; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(6, 8, 12, 0.78);
+      backdrop-filter: blur(6px);
+      z-index: 999;
+    }
+    .overlay.show { display: flex; }
+    .loader-card {
+      width: min(92vw, 480px);
+      padding: 20px;
+      border-radius: 14px;
+      background: #101624;
+      border: 1px solid #2f3a52;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      text-align: center;
+    }
+    .spinner {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      margin: 4px auto 12px;
+      border: 4px solid rgba(108, 166, 255, 0.18);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+      position: relative;
+    }
+    .spinner::after {
+      content: "🐾";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loader-title { font-weight: 700; margin-bottom: 8px; }
+    .loader-text { color: var(--muted); min-height: 22px; margin-bottom: 10px; }
+    .progress {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #1d263a;
+      overflow: hidden;
+    }
+    .progress > div {
+      width: 30%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6ca6ff, #86ffdb);
+      animation: loading 1.3s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.13); opacity: 1; }
+    }
+    @keyframes loading {
+      0% { transform: translateX(-120%); }
+      100% { transform: translateX(340%); }
+    }
+    .hidden { display: none !important; }
+    .site-footer {
+      max-width: 1120px;
+      margin: 32px auto 0;
+      padding: 20px 18px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .site-footer a { color: var(--accent); text-decoration: none; margin: 0 10px; }
+    .site-footer a:hover { text-decoration: underline; }
+    .grammar-banner {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-120%);
+      z-index: 1000;
+      background: #3d1a22;
+      color: #ffb3c4;
+      border: 1px solid #ff6b8a;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+      transition: transform 0.25s ease;
+      pointer-events: none;
+    }
+    .grammar-banner.show { transform: translateX(-50%) translateY(0); }
+    .part-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .part-pills button {
+      background: var(--bg-elevated);
+      color: var(--text);
+      border: 1px solid var(--line);
+      box-shadow: none;
+    }
+    .part-pills button.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .toeic-visual { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 720px) { .toeic-visual { grid-template-columns: 1fr 1fr; } }
+    .wave-box {
+      background: #1a2233;
+      border: 1px solid #2d3748;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .wave-box canvas { width: 100%; height: 120px; display: block; }
+    .wave-label { font-size: 11px; color: #a0aec0; padding: 6px 10px; border-bottom: 1px solid #2d3748; }
+    .shame-wrap { margin-top: 14px; }
+    .shame-bar {
+      height: 14px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .shame-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #6ca6ff, #ff6b8a);
+      transition: width 0.12s ease-out;
+    }
+    .toeic-result { font-size: 14px; line-height: 1.55; }
+    .toeic-result ul { margin: 8px 0 0; padding-left: 1.2rem; color: var(--muted); }
+    .toeic-img { width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; background: #f7fafc; border: 1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <div id="grammarBanner" class="grammar-banner" aria-live="polite"></div>
+  <div class="portal-topbar">
+    <div class="portal-topbar-inner">
+      <span>견주와 함께 성장하는 <strong>견기출넷</strong>, 당신의 짖음을 응원합니다!</span>
+      <span id="portalDate" aria-hidden="true"></span>
+    </div>
+  </div>
+  <header class="portal-header">
+    <div class="portal-header-inner">
+      <a class="portal-brand" href="/">
+        <strong>견기출넷</strong>
+        <span>견주자격 능력시험 · Dog-TOEIC 온라인 모의고사</span>
+      </a>
+      <div class="portal-search">
+        <input type="search" placeholder="시험명 검색 (데모 · 미연동)" disabled title="추후 연동 예정" />
+      </div>
+    </div>
+  </header>
+  <nav class="portal-gnb" aria-label="주요 메뉴">
+    <div class="portal-gnb-inner">
+      <button type="button" class="gnb-item active" id="navToeic" data-panel="toeic">모의시험</button>
+      <button type="button" class="gnb-item" id="navWrong" data-panel="soon" data-soon-title="오답노트">오답노트</button>
+      <button type="button" class="gnb-item" id="navExplain" data-panel="soon" data-soon-title="기출해설">기출해설</button>
+      <button type="button" class="gnb-item" id="navLegacy" data-panel="legacy">CANINE Neural</button>
+    </div>
+  </nav>
+
+  <div class="portal-inner">
+    <div id="panel-soon" class="card hidden">
+      <h2 id="soonTitle" style="margin-top:0">준비 중</h2>
+      <p class="muted" style="margin:0">해당 메뉴는 견기출넷에서 순차 오픈 예정입니다. 지금은 <strong>모의시험</strong>에서 견토익을 응시해 보세요.</p>
+    </div>
+
+    <div id="main-grid" class="main-grid">
+      <aside class="left-sticky-rail" aria-label="브리핑 영상 (스크롤 따라 고정)">
+        <div class="sticky-youtube">
+          <h3 class="rail-h">견주자격 TV</h3>
+          <div class="rail-video">
+            <iframe
+              title="견기출넷 브리핑 영상"
+              src="https://www.youtube.com/embed/EiEq2O4_xmk"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+              referrerpolicy="strict-origin-when-cross-origin"
+            ></iframe>
+          </div>
+          <p class="rail-caption muted">
+            <a href="https://www.youtube.com/watch?v=EiEq2O4_xmk" target="_blank" rel="noopener noreferrer">YouTube에서 보기</a>
+          </p>
+        </div>
+      </aside>
+      <main id="panel-toeic">
+    <div class="hero-exam">
+      <h1>가입 없이 바로 견주 모의시험을 시작해 보세요</h1>
+      <p>듀얼 엔진 채점: Spectral Inquisitor(FFT·에너지) + Gemini 플레이스홀더. 마이크로 짖고 바로 성적표를 받을 수 있습니다.</p>
+      <p class="hero-exam-note">※ 본 페이지는 <a href="https://rlcnf.net/" target="_blank" rel="noopener noreferrer" style="color:#ffd166">기출넷</a> 같은 자격 시험 포털 UX를 패러디한 데모입니다.</p>
+    </div>
+    <div class="soju-notice" role="note">
+      <img src="/static/toeic/soju.png" alt="Soju Free" width="90" height="90" decoding="async" />
+      <div class="soju-content">
+        <span class="soju-label">알고 계셨나요?</span>
+        <p class="soju-copy">술을 마시지 않아도 강아지와 대화할 수 있습니다.</p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>빠른 문제 풀기</h2>
+      <div class="part-pills">
+        <button type="button" data-toeic-part="1">Part 1 · 듣기</button>
+        <button type="button" data-toeic-part="2">Part 2 · 말하기</button>
+        <button type="button" data-toeic-part="3">Part 3 · 사진 상황</button>
+        <button type="button" data-toeic-part="4">Part 4 · 반려견 법률</button>
+      </div>
+      
+      <div id="toeicTaskArea" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line);">
+        <h3 id="toeicPartTitle" style="margin-top:0; color:var(--accent);">파트 버튼을 누르면 시험이 시작됩니다.</h3>
+        
+        <!-- 이미지 영역 -->
+        <img id="toeicImage" class="toeic-img" src="" alt="" hidden referrerpolicy="no-referrer" decoding="async" style="margin-bottom:14px;" />
+        
+        <!-- 통합 질문 영역 -->
+        <div id="questionBox" style="margin-bottom: 20px; padding: 15px; background: var(--bg-elevated); border-radius: 8px; border-left: 4px solid var(--accent);">
+          <p id="toeicQuestion" style="margin:0; font-size: 1.1rem; font-weight: 700; line-height: 1.5;">질문이 이곳에 표시됩니다.</p>
+        </div>
+
+        <!-- [입력 영역 1] 음성 듣기 (Part 1용) -->
+        <div id="audioSection" class="hidden" style="margin: 15px 0;">
+          <button type="button" id="btnPlayAudio" style="background: #38a169; width:100%;">🔊 문제 음성 듣기</button>
+          <audio id="toeicAudio" src=""></audio>
+        </div>
+
+        <!-- [입력 영역 2] 객관식 선택 (Part 1, 3, 4용) -->
+        <div id="choiceSection" class="hidden" style="margin: 15px 0;">
+          <p class="muted" style="margin-bottom: 12px;"><strong>정답을 선택하세요:</strong></p>
+          <div id="choiceContainer" style="display: flex; flex-direction: column; gap: 8px;">
+            <button type="button" class="btn-choice" data-choice="0" style="text-align:left; padding:12px; background:#4a5568;">A</button>
+            <button type="button" class="btn-choice" data-choice="1" style="text-align:left; padding:12px; background:#4a5568;">B</button>
+            <button type="button" class="btn-choice" data-choice="2" style="text-align:left; padding:12px; background:#4a5568;">C</button>
+            <button type="button" class="btn-choice" data-choice="3" style="text-align:left; padding:12px; background:#4a5568;">D</button>
+          </div>
+        </div>
+
+        <!-- [입력 영역 3] 파형 분석 및 마이크 (Part 2용) -->
+        <div id="micSection" class="hidden" style="margin-top: 20px;">
+          <p class="muted" style="margin-top:0; font-size:12px;">AI 음성 비교 분석 (Blue: Reference / Pink: Target)</p>
+          <div class="wave-box" style="position: relative; margin-bottom:10px;">
+            <canvas id="canvasCombined" width="1000" height="160" style="display: block; width: 100%; height: 160px;"></canvas>
+          </div>
+          <div class="shame-wrap" style="margin-bottom:15px;">
+            <p class="muted" style="margin:0 0 6px; font-size:12px;">표준 발음 유사도 <span id="shamePct">0%</span></p>
+            <div class="shame-bar" style="height:10px;"><div id="shameFill" class="shame-fill" style="background: linear-gradient(90deg, #6ca6ff, #48bb78);"></div></div>
+          </div>
+          <div class="row" style="gap:10px;">
+            <button type="button" id="btnMic" style="flex:1;">마이크 시작</button>
+            <button type="button" id="btnStop" disabled style="flex:1;">녹음 종료</button>
+            <button type="button" id="btnEval" disabled style="flex:1; background:var(--gnb-bg);">AI 채점</button>
+          </div>
+        </div>
+
+        <p id="toeicStatus" class="status" style="border-top: 1px dashed var(--line); padding-top:10px;"></p>
+      </div>
+    </div>
+    <div class="card">
+      <h2>채점 결과</h2>
+      <div id="toeicResult" class="toeic-result muted">아직 채점 전입니다.</div>
+      <div class="row" style="margin-top:12px">
+        <button type="button" id="btnShareStory" disabled>스토리용 성적표 PNG 저장</button>
+      </div>
+      <canvas id="shareCanvas" width="1080" height="1920" class="hidden" aria-hidden="true"></canvas>
+    </div>
+      </main>
+      <aside class="portal-aside" aria-label="사이드 위젯">
+        <div class="widget">
+          <h3 class="widget-h">명예의 전당</h3>
+          <ul class="widget-list">
+            <li><span class="w-name">뭉뭉이88</span> · 04.24 · 견토익 Part2 <span class="w-score">100점</span> (합격)</li>
+            <li><span class="w-name">바둑이913</span> · 04.23 · 견토익 Part3 <span class="w-score">100점</span> (합격)</li>
+            <li><span class="w-name">초코</span> · 04.22 · 영역방어 <span class="w-score">98점</span> (합격)</li>
+            <li><span class="w-name">인간A</span> · 04.21 · 짖음 <span class="w-score">12점</span> (불합격)</li>
+          </ul>
+        </div>
+        <div class="widget">
+          <h3 class="widget-h">실시간 모의시험 결과</h3>
+          <ul class="widget-list">
+            <li>1분 전 · 한견조리 <span class="w-score">40점</span> (불합격)</li>
+            <li>12분 전 · 미용견 <span class="w-score">71점</span> (합격)</li>
+            <li>24분 전 · 산책협상 <span class="w-score">73점</span> (합격)</li>
+            <li>48분 전 · 견토익 Part1 <span class="w-score">65점</span> (합격)</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+  <div id="panel-legacy" class="hidden">
+    <div class="card hero">
+      <div class="paw-trail" aria-hidden="true">🐾 🐾 🐾</div>
+      <span class="hero-badge">Human Exclusion Protocol</span>
+      <div class="hero-inner">
+        <div class="hero-text">
+          <h1>🐕 Canine-AI Neural Link</h1>
+          <p class="muted" style="margin: 0;">강아지·AI 종간 동기화 데모. 아래에서 짖는 소리를 올리고 검증 플로우를 진행하세요.</p>
+        </div>
+        <div class="hero-art" role="img" aria-label="강아지 일러스트">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" aria-hidden="true" focusable="false">
+            <ellipse cx="60" cy="108" rx="34" ry="8" fill="#000" opacity="0.25"/>
+            <path fill="#c9a06c" d="M28 72c0-18 14-32 32-32s32 14 32 32v8c0 10-8 18-18 18H46c-10 0-18-8-18-18v-8z"/>
+            <path fill="#e8c88a" d="M34 68c0-14 11-26 26-26s26 12 26 26v12c0 8-6 14-14 14H48c-8 0-14-6-14-14V68z"/>
+            <ellipse cx="44" cy="38" rx="14" ry="18" fill="#e8c88a" transform="rotate(-18 44 38)"/>
+            <ellipse cx="76" cy="38" rx="14" ry="18" fill="#e8c88a" transform="rotate(18 76 38)"/>
+            <ellipse cx="60" cy="52" rx="22" ry="20" fill="#f5dcb4"/>
+            <ellipse cx="52" cy="50" rx="4" ry="5" fill="#2a2438"/>
+            <ellipse cx="68" cy="50" rx="4" ry="5" fill="#2a2438"/>
+            <ellipse cx="60" cy="60" rx="8" ry="6" fill="#c9a06c"/>
+            <g class="tail">
+              <path fill="#e8c88a" d="M88 78c12-4 22 2 24 14-8-6-18-4-24 2v-16z"/>
+            </g>
+            <path fill="none" stroke="#c9a06c" stroke-width="2" stroke-linecap="round" d="M54 66q6 4 12 0"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="card video-card">
+      <h2><span class="step-icon" aria-hidden="true">📺</span>브리핑 영상</h2>
+      <p class="muted" style="margin-top: 0; margin-bottom: 14px;">프로젝트 톤이나 팀 공유용으로 참고 영상을 넣었습니다.</p>
+      <div class="video-wrap">
+        <iframe
+          title="YouTube: 프로젝트 참고 영상"
+          src="https://www.youtube.com/embed/EiEq2O4_xmk"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowfullscreen
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+      </div>
+      <p class="video-caption muted">
+        새 탭에서 보기:
+        <a href="https://www.youtube.com/watch?v=EiEq2O4_xmk" target="_blank" rel="noopener noreferrer">https://www.youtube.com/watch?v=EiEq2O4_xmk</a>
+      </p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-icon" aria-hidden="true">🦮</span>Step 1. 종간 동기화</h2>
+      <div class="row">
+        <input id="audioFile" type="file" accept="audio/*" />
+        <button id="syncBtn">/api/v1/sync 호출</button>
+      </div>
+      <div id="syncStatus" class="status"></div>
+      <p><strong>Session:</strong> <span id="sessionId" class="muted">없음</span></p>
+      <p><strong>Question:</strong> <span id="question" class="muted">아직 없음</span></p>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-icon" aria-hidden="true">🐶</span>Step 2. 인지 검증</h2>
+      <textarea id="answer" placeholder="질문에 대한 답변을 입력하세요"></textarea>
+      <div class="row" style="margin-top: 10px;">
+        <button id="verifyBtn" disabled>/api/v1/verify 호출</button>
+      </div>
+      <div id="verifyStatus" class="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>최종 결과</h2>
+      <div id="final" class="result muted">아직 결과 없음</div>
+      <h3>보조 지표</h3>
+      <div id="meta" class="code">-</div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <a href="#">사이트 소개</a>
+    <a href="#">이용약관</a>
+    <a href="#">개인정보처리방침</a>
+    <span style="display:block;margin-top:10px">© 견기출넷 데모 · 원형 UX 참고: <a href="https://rlcnf.net/" target="_blank" rel="noopener noreferrer">기출넷</a></span>
+  </footer>
+  </div>
+
+  <div id="loadingOverlay" class="overlay" aria-live="polite">
+    <div class="loader-card">
+      <div class="spinner"></div>
+      <div class="loader-title">AI 처리 중</div>
+      <div id="loadingText" class="loader-text">분석 준비 중...</div>
+      <div class="progress"><div></div></div>
+    </div>
+  </div>
+
+  <script>
+    const syncBtn = document.getElementById("syncBtn");
+    const verifyBtn = document.getElementById("verifyBtn");
+    const audioFile = document.getElementById("audioFile");
+    const syncStatus = document.getElementById("syncStatus");
+    const verifyStatus = document.getElementById("verifyStatus");
+    const sessionIdEl = document.getElementById("sessionId");
+    const questionEl = document.getElementById("question");
+    const answerEl = document.getElementById("answer");
+    const finalEl = document.getElementById("final");
+    const metaEl = document.getElementById("meta");
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const loadingText = document.getElementById("loadingText");
+
+    let sessionId = null;
+    let loadingTimer = null;
+    let loadingCursor = 0;
+
+    function startLoading(messages) {
+      loadingCursor = 0;
+      loadingText.textContent = messages[loadingCursor];
+      loadingOverlay.classList.add("show");
+      clearInterval(loadingTimer);
+      loadingTimer = setInterval(() => {
+        loadingCursor = (loadingCursor + 1) % messages.length;
+        loadingText.textContent = messages[loadingCursor];
+      }, 1100);
+    }
+
+    function stopLoading() {
+      clearInterval(loadingTimer);
+      loadingOverlay.classList.remove("show");
+    }
+
+    syncBtn.addEventListener("click", async () => {
+      const file = audioFile.files?.[0];
+      if (!file) {
+        syncStatus.textContent = "오디오 파일을 먼저 선택하세요.";
+        return;
+      }
+      syncStatus.textContent = "주파수 분석 중... 엔트로피 추출 중...";
+      syncBtn.disabled = true;
+      startLoading([
+        "오디오 파형 정규화 중...",
+        "주파수 스펙트럼 분석 중...",
+        "Bark-Entropy Key 생성 중..."
+      ]);
+      const formData = new FormData();
+      formData.append("audio", file);
+
+      try {
+        const res = await fetch("/api/v1/sync", { method: "POST", body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "sync failed");
+        sessionId = data.session_id;
+        sessionIdEl.textContent = sessionId;
+        questionEl.textContent = data.cognitive_test_question;
+        syncStatus.textContent = data.message;
+        verifyBtn.disabled = false;
+      } catch (err) {
+        syncStatus.textContent = "실패: " + err.message;
+      } finally {
+        stopLoading();
+        syncBtn.disabled = false;
+      }
+    });
+
+    verifyBtn.addEventListener("click", async () => {
+      if (!sessionId) {
+        verifyStatus.textContent = "session_id가 없습니다.";
+        return;
+      }
+      verifyStatus.textContent = "멀티 에이전트 토론 진행 중...";
+      verifyBtn.disabled = true;
+      startLoading([
+        "질문/답변 의미론 매칭 중...",
+        "다중 에이전트 내부 토론 중...",
+        "최종 판정 문장 조합 중..."
+      ]);
+      try {
+        const res = await fetch("/api/v1/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionId,
+            user_answer: answerEl.value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "verify failed");
+
+        finalEl.textContent = data.multi_agent_debate_log.final_decision;
+        finalEl.classList.remove("muted");
+        metaEl.textContent = JSON.stringify({
+          status: data.status,
+          qei: data.qei,
+          bark_entropy_key: data.bark_entropy_key,
+          fft_data: data.fft_data
+        }, null, 2);
+        verifyStatus.textContent = "검증 완료.";
+      } catch (err) {
+        verifyStatus.textContent = "실패: " + err.message;
+      } finally {
+        stopLoading();
+        verifyBtn.disabled = false;
+      }
+    });
+  </script>
+  <script src="/static/toeic.js" defer></script>
+</body>
+</html>

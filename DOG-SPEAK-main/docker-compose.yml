@@ -1,0 +1,6 @@
+services:
+  canine-ai:
+    build: .
+    container_name: canine-ai-neural-link
+    ports:
+      - "8000:8000"

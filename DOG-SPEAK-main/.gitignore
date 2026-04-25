@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+static/assets/audio/*
+static/assets/images/*
+!static/assets/audio/.gitkeep
+!static/assets/images/.gitkeep
