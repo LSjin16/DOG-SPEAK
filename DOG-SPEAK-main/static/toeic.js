@@ -680,10 +680,15 @@
       const sr = data.score_report || {};
       const tier = shareLabel(sr.level || 1);
       toeicResult.classList.remove("muted");
+      
+      const techScoreDisplay = sr.is_human_dialect_detected 
+        ? `<span style="color:var(--danger); font-weight:bold;">0 (인간 방언 감지로 인한 실격)</span>`
+        : sr.technical_score;
+        
       toeicResult.innerHTML = `
         <p><strong>Session:</strong> ${data.session_id}</p>
         <p><strong>Level:</strong> ${sr.level} · <span class="muted">${tier}</span></p>
-        <p><strong>기술 점수:</strong> ${sr.technical_score}</p>
+        <p><strong>기술 점수:</strong> ${techScoreDisplay}</p>
         <p><strong>인간 방언 감지:</strong> ${sr.is_human_dialect_detected ? "예" : "아니오"}</p>
         <p><strong>스펙트럼:</strong> ${sr.spectral_analysis}</p>
         <p><strong>Gemini 피드백:</strong> ${data.gemini_feedback}</p>

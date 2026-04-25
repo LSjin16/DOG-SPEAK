@@ -235,14 +235,18 @@ async def evaluate(
         
         try:
             gemini_result = evaluate_with_gemini(audio_path, part_id, technical_score, part_info)
-            if is_human:
+            # 물리 엔진이나 AI가 인간 방언을 감지했을 경우 즉시 실격(0점) 처리
+            if is_human or gemini_result.get("human_dialect_detected", False):
                 gemini_result["human_dialect_detected"] = True
-                gemini_result["level"] = min(gemini_result["level"], 2)
+                gemini_result["level"] = 1
+                technical_score = 0.0  # 인간 언어 감지 시 기술 점수 무효화
                 if "feedback" in gemini_result and len(gemini_result["feedback"]) < 50:
-                    gemini_result["feedback"] = "인간의 언어적 특성이 너무 강하게 감지되었습니다. 강아지처럼 더 거칠고 다이나믹하게 짖으세요."
+                    gemini_result["feedback"] = "인간의 언어적 특성이 너무 강하게 감지되었습니다. 견공 언어 체계를 전혀 이해하지 못한 발성입니다."
         except Exception as e:
             print(f"DEBUG: Gemini API actual error - {e}")
             # [안전장치] API 실패 시 가짜 데이터로 서비스 유지
+            if is_human:
+                technical_score = 0.0
             gemini_result = {
                 "level": 1 if is_human else random.randint(3, 5),
                 "human_dialect_detected": is_human,

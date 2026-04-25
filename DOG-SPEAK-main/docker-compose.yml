@@ -10,8 +10,9 @@ services:
     volumes:
       - .:/app
     environment:
-      - ENV=development
-      - GEMINI_API_KEY=AIzaSyA-UR-CcIG1q4-0DxbeGDWGjGM7ccU1IvE # 실제 키는 나중에 .env로 관리하세요
+      - ENV=production
+    env_file:
+      - .env
     depends_on:
       - redis
 

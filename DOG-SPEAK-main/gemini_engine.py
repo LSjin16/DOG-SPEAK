@@ -4,125 +4,96 @@ import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
-# .env 로딩 실패를 대비해 여기에 직접 키를 입력할 수 있도록 합니다.
-api_key = os.getenv("GEMINI_API_KEY") or "AIzaSyA-UR-CcIG1q4-0DxbeGDWGjGM7ccU1IvE"
+# 현재 파일(gemini_engine.py)의 위치를 기준으로 .env 파일을 강제 로드합니다.
+current_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(current_dir, ".env")
 
-if api_key and not api_key.startswith("여기에"):
-    print(f"DEBUG: Gemini API Key initialized. Prefix: {api_key[:4]}****")
+def load_env_manually(path):
+    if not os.path.exists(path): return {}
+    env_data = {}
+    for enc in ["utf-8-sig", "utf-8", "utf-16"]:
+        try:
+            with open(path, "r", encoding=enc) as f:
+                content = f.read().replace('\ufeff', '')
+                if "=" in content:
+                    for line in content.splitlines():
+                        line = line.strip()
+                        if line and "=" in line and not line.startswith("#"):
+                            k, v = line.split("=", 1)
+                            env_data[k.strip()] = v.strip("'\" ")
+                    if env_data: return env_data
+        except:
+            continue
+    return env_data
+
+load_dotenv(env_path, override=True)
+manual_env = load_env_manually(env_path)
+api_key = os.getenv("GEMINI_API_KEY") or manual_env.get("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
+if api_key:
+    genai.configure(api_key=api_key)
 else:
-    print("CRITICAL: Gemini API Key IS STILL MISSING!")
-
-genai.configure(api_key=api_key)
+    print("CRITICAL: GEMINI_API_KEY NOT FOUND!")
 
 def evaluate_with_gemini(audio_path, part_id, technical_score, part_info):
     """
-    사용 가능한 모델을 직접 조회하여 평가를 진행합니다.
+    보안이 강화된 Gemini 호출 로직 (에러 로그에서 API 키 노출 방지)
     """
-    # 1. 사용 가능한 모델 탐색 (404 방지)
-    model_name = "gemini-1.5-flash" # 기본값
     try:
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if available_models:
-            # 1.5 flash가 있으면 우선 사용, 없으면 첫 번째 모델 사용
-            flash_models = [m for m in available_models if "1.5-flash" in m]
-            model_name = flash_models[0] if flash_models else available_models[0]
-            print(f"DEBUG: Selected available model: {model_name}")
-    except Exception as e:
-        print(f"DEBUG: Model listing failed, using default - {e}")
+        # 1. 모델 결정
+        model_name = "gemini-2.5-flash"
+        try:
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            flash25 = [m for m in available_models if "2.5-flash" in m]
+            if flash25: model_name = flash25[0]
+            elif available_models: model_name = available_models[0]
+        except:
+            pass
 
-    # 2. 오디오 데이터 로드
-    try:
+        # 2. 오디오 로드
         with open(audio_path, "rb") as f:
             audio_data = f.read()
-    except Exception as e:
-        print(f"File Read Error: {e}")
-        raise e
 
-    # 3. 정밀 분석 프롬프트 구성 (공인 채점관 스타일)
-    prompt = f"""
-    당신은 '대한견공표준어제정위원회'의 수석 채점관이자 국가공인 음성 분석관입니다. 
-    본 평가는 인간의 견공 언어 구사 능력을 검증하는 공식적인 국가 자격 시험입니다.
+        # 3. 프롬프트 구성 (공인 채점관 리포트 형식)
+        prompt = f"""
+        당신은 '대한견공표준어제정위원회'의 수석 채점관입니다. 
+        견토익(Dog-TOEIC) 스피킹 시험 결과 리포트를 작성하세요.
+        기술점수: {technical_score}/100.
+        음성학적 관점에서 인간 언어 특성(모음 포먼트, 조음 습관)이 검출되었는지 정밀 분석하여 10문장 이상 전문적으로 기술하세요.
+        출력 형식: {{"level": 1~8, "feedback": "전문평가", "human_dialect_detected": true/false, "advice": ["조언1", "조언2"]}}
+        반드시 JSON으로만 답변하세요.
+        """
 
-    [채점 가이드라인 - 공식 리포트 어조]
-    1. 분석 지표:
-       - 주파수 포먼트(Formants): 인간 특유의 구강 구조에서 기인하는 모음(a, e, i, o, u) 성분 검출 여부.
-       - 타격 에너지(Attack Energy): 흉강 압력을 활용한 폭발적 발성(Plosives)의 도달 속도 분석.
-       - 배음 구조(Harmonics): 비주기적 노이즈와 고주파 대역의 에너지가 견공의 생리학적 구조와 일치하는지 여부.
-       - 조음 습관: 입술과 혀를 사용하는 '인간식 발음' 습관 검출.
-
-    2. 판정 기준:
-       - 인간 언어적 특성이 조금이라도 감지될 경우 '인간 방언(Human Dialect)'으로 확정 판정함.
-       - 기술 분석 점수({technical_score})와 실제 오디오의 질감을 대조하여 신뢰도를 평가함.
-
-    [출력 요구사항]
-    - 정중하면서도 매우 차갑고 권위 있는 말투를 사용하세요. (~함, ~음, ~입니다 형식)
-    - 음성학적 근거를 바탕으로 해당 발성이 왜 부적합한지, 혹은 왜 합격점인지 10문장 이상 전문적으로 기술하세요.
-    - 감정적인 비난보다는 데이터와 관찰 결과에 근거한 비평을 작성하세요.
-    - 결과는 반드시 아래 JSON 형식으로만 응답하세요.
-
-    {{
-        "level": 등급(1-8),
-        "feedback": "전문 분석 리포트 내용",
-        "human_dialect_detected": true/false,
-        "advice": ["정밀 훈련 가이드 1", "훈련 가이드 2", "훈련 가이드 3"]
-    }}
-    """
-
-    # 4. 분석 실행
-    model = genai.GenerativeModel(model_name)
-    response = model.generate_content([
-        prompt,
-        {
-            "mime_type": "audio/webm",
-            "data": audio_data
-        }
-    ])
-    
-    # 5. 결과 반환
-    try:
+        # 4. 분석 실행
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content([
+            prompt,
+            {
+                "mime_type": "audio/webm",
+                "data": audio_data
+            }
+        ])
+        
+        # 5. 결과 파싱
         raw_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(raw_text)
-    except:
-        # 텍스트 응답이 JSON이 아닐 경우를 대비한 파싱 로직
-        import re
-        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
-        raise ValueError("AI response format error")
+        try:
+            return json.loads(raw_text)
+        except:
+            import re
+            match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+            if match: return json.loads(match.group())
+            raise ValueError("Invalid AI JSON format")
+
+    except Exception:
+        # [핵심 보안] 상세 에러를 절대 로그에 남기지 않습니다.
+        print("DEBUG: Gemini API communication failed. (Error details suppressed for security)")
+        raise ValueError("AI_ENGINE_OFFLINE")
 
 def generate_new_exam_questions(part_id, count=5):
-    """
-    Gemini를 사용하여 새로운 견토익 문제를 생성합니다.
-    """
     model = genai.GenerativeModel('gemini-1.5-pro')
-    
-    prompt = f"""
-    당신은 '대한견공표준어제정위원회'의 문제 출제 위원입니다.
-    인간이 강아지와 소통하는 능력을 평가하는 '견토익(Dog-TOEIC)' Part {part_id} 문제를 {count}개 출제하세요.
-    
-    [파트 정보]
-    - Part 1: 듣기 (강아지 소리를 듣고 해석하기)
-    - Part 2: 말하기 (상황에 맞춰 사람이 강아지 언어로 말하기)
-    - Part 3: 사진 상황 (강아지 행동 보고 심리 맞추기)
-    - Part 4: 반려견 법률 (한국 반려동물 법규 상식)
-    
-    [출력 형식] 반드시 아래 JSON 배열 형식으로만 답변하세요.
-    [{{
-        "subject": {part_id},
-        "subject_name": "파트이름",
-        "question": "문제 내용",
-        "target_script": "Part 2일 경우에만 필요, 나머지는 빈 문자열",
-        "options": ["보기1", "보기2", "보기3", "보기4"],
-        "answer": 정답인덱스(0-3),
-        "explanation": "해설 내용"
-    }}]
-    """
-    
+    prompt = f"견토익 Part {part_id} 문제를 {count}개 출제하고 JSON으로만 답변하세요."
     try:
         response = model.generate_content(prompt)
-        raw_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(raw_text)
-    except Exception as e:
-        print(f"Question Generation Error: {e}")
+        return json.loads(response.text.replace("```json", "").replace("```", "").strip())
+    except:
         return []
