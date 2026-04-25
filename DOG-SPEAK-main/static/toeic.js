@@ -13,41 +13,82 @@
     return `Level ${level}`;
   }
 
-  const navToeic = document.getElementById("navToeic");
-  const navLegacy = document.getElementById("navLegacy");
   const panelToeic = document.getElementById("panel-toeic");
   const panelLegacy = document.getElementById("panel-legacy");
+  const panelWrong = document.getElementById("panel-wrong");
+  const panelExplain = document.getElementById("panel-explain");
   const mainGrid = document.getElementById("main-grid");
   const panelSoon = document.getElementById("panel-soon");
   const soonTitle = document.getElementById("soonTitle");
-  if (!navToeic || !panelToeic || !mainGrid || !panelSoon) return;
+  
+  // 로그인 관련 엘리먼트
+  const loginOverlay = document.getElementById("loginOverlay");
+  const loginNameInput = document.getElementById("loginNameInput");
+  const btnLogin = document.getElementById("btnLogin");
+  const userInfo = document.getElementById("userInfo");
+  const displayUserName = document.getElementById("displayUserName");
+  const btnChangeUser = document.getElementById("btnChangeUser");
+
+  let currentUserId = localStorage.getItem("dogToeicUser") || null;
+
+  function checkLogin() {
+    if (!currentUserId) {
+      if (loginOverlay) loginOverlay.style.display = "flex";
+    } else {
+      if (loginOverlay) loginOverlay.style.display = "none";
+      if (userInfo) userInfo.style.display = "flex";
+      if (displayUserName) displayUserName.textContent = currentUserId;
+    }
+  }
+
+  btnLogin?.addEventListener("click", () => {
+    const name = loginNameInput.value.trim();
+    if (!name) {
+      alert("이름을 입력해 주세요!");
+      return;
+    }
+    currentUserId = name;
+    localStorage.setItem("dogToeicUser", name);
+    checkLogin();
+    if (!panelWrong.classList.contains("hidden")) loadWrongNotes();
+  });
+
+  btnChangeUser?.addEventListener("click", () => {
+    if (confirm("로그아웃하시겠습니까? 기록은 서버에 저장되어 이름 입력 시 다시 불러올 수 있습니다.")) {
+      localStorage.removeItem("dogToeicUser");
+      location.reload();
+    }
+  });
 
   function clearGnb() {
     document.querySelectorAll(".gnb-item").forEach((b) => b.classList.remove("active"));
   }
 
   function setMode(mode, clickedBtn) {
+    // 모든 패널 숨기기
+    [panelToeic, panelLegacy, panelWrong, panelExplain, panelSoon, mainGrid].forEach(p => p?.classList.add("hidden"));
+
+    clearGnb();
+    clickedBtn?.classList.add("active");
+
     if (mode === "toeic") {
-      clearGnb();
-      (clickedBtn || navToeic).classList.add("active");
-      panelSoon.classList.add("hidden");
       mainGrid.classList.remove("hidden");
-      panelLegacy.classList.add("hidden");
+      panelToeic.classList.remove("hidden");
     } else if (mode === "legacy") {
-      clearGnb();
-      (clickedBtn || navLegacy).classList.add("active");
-      panelSoon.classList.add("hidden");
-      mainGrid.classList.add("hidden");
       panelLegacy.classList.remove("hidden");
       stopVisualizer();
+    } else if (mode === "wrong") {
+      panelWrong.classList.remove("hidden");
+      loadWrongNotes();
+      stopVisualizer();
+    } else if (mode === "explain") {
+      panelExplain.classList.remove("hidden");
+      loadExplanations();
+      stopVisualizer();
     } else if (mode === "soon") {
-      clearGnb();
-      clickedBtn?.classList.add("active");
       const t = clickedBtn?.getAttribute("data-soon-title") || "서비스";
       if (soonTitle) soonTitle.textContent = `${t} (준비 중)`;
       panelSoon.classList.remove("hidden");
-      mainGrid.classList.add("hidden");
-      panelLegacy.classList.add("hidden");
       stopVisualizer();
     }
   }
@@ -55,11 +96,87 @@
   document.querySelectorAll(".gnb-item").forEach((btn) => {
     btn.addEventListener("click", () => {
       const p = btn.getAttribute("data-panel");
-      if (p === "toeic") setMode("toeic", btn);
+      const id = btn.id;
+      if (id === "navWrong") setMode("wrong", btn);
+      else if (id === "navExplain") setMode("explain", btn);
+      else if (p === "toeic") setMode("toeic", btn);
       else if (p === "legacy") setMode("legacy", btn);
       else if (p === "soon") setMode("soon", btn);
     });
   });
+
+  // 오답노트 로딩
+  async function loadWrongNotes() {
+    const listEl = document.getElementById("wrongNotesList");
+    if (!listEl) return;
+    listEl.innerHTML = "<p class='muted'>오답 정보를 불러오는 중...</p>";
+    
+    try {
+      const res = await fetch(`/api/v1/toeic/v2/review/wrong-notes/${currentUserId}`);
+      const data = await res.json();
+      
+      if (!data || data.length === 0) {
+        listEl.innerHTML = "<p class='muted' style='text-align:center; padding: 40px 0;'>아직 틀린 문제가 없습니다. 모든 문제를 맞추셨거나 시험을 아직 치르지 않으셨네요!</p>";
+        return;
+      }
+
+      listEl.innerHTML = data.map(item => `
+        <div class="card" style="margin-bottom:0; border-left: 4px solid var(--danger);">
+          <div style="font-size:12px; color:var(--accent); font-weight:700; margin-bottom:4px;">[${item.subject_name}] ${item.exam_title}</div>
+          <div style="font-weight:700; font-size:1.05rem; margin-bottom:10px;">Q. ${item.question}</div>
+          <div style="background:var(--accent-soft); padding:10px; border-radius:8px; font-size:14px; color:var(--text);">
+            <strong style="color:var(--danger);">[해설]</strong> ${item.explanation}
+          </div>
+        </div>
+      `).join("");
+    } catch (e) {
+      listEl.innerHTML = "<p class='muted'>오답 노트를 불러오는 데 실패했습니다.</p>";
+    }
+  }
+
+  // 기출해설 로딩
+  async function loadExplanations() {
+    const selectEl = document.getElementById("examSelect");
+    const listEl = document.getElementById("explainList");
+    if (!selectEl || !listEl) return;
+
+    try {
+      const res = await fetch("/api/v1/toeic/v2/exams");
+      const exams = await res.json();
+      
+      selectEl.innerHTML = '<option value="">회차를 선택하세요</option>' + 
+        exams.map(e => `<option value="${e.exam_id}">${e.year}년 ${e.title}</option>`).join("");
+      
+      selectEl.onchange = async () => {
+        const examId = selectEl.value;
+        if (!examId) {
+          listEl.innerHTML = "";
+          return;
+        }
+        
+        listEl.innerHTML = "<p class='muted'>해설 정보를 불러오는 중...</p>";
+        const detailRes = await fetch(`/api/v1/toeic/v2/exams/${examId}`);
+        const exam = await detailRes.json();
+        
+        listEl.innerHTML = exam.questions.map((q, idx) => `
+          <div class="card" style="margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-weight:800; color:var(--accent);">문제 ${idx + 1}</span>
+              <span class="hero-badge" style="margin-bottom:0; font-size:10px;">${q.subject_name}</span>
+            </div>
+            <div style="font-weight:700; margin-bottom:12px;">${q.question_text || q.question}</div>
+            ${q.image_url ? `<img src="${q.image_url}" class="toeic-img" style="margin-bottom:12px; max-height:150px;" />` : ""}
+            <div style="padding:12px; background:var(--bg-elevated); border-radius:8px;">
+              <div style="font-size:13px; margin-bottom:6px;"><strong>정답:</strong> ${q.options ? q.options[q.answer] : (q.target_script || "짖음 실기")}</div>
+              <div style="font-size:13px; color:var(--muted);"><strong>해설:</strong> ${q.explanation}</div>
+            </div>
+          </div>
+        `).join("");
+      };
+    } catch (e) {
+      listEl.innerHTML = "<p class='muted'>기출 해설을 불러오는 데 실패했습니다.</p>";
+    }
+  }
 
   const partBtns = document.querySelectorAll("[data-toeic-part]");
   const toeicPartTitle = document.getElementById("toeicPartTitle");
@@ -71,18 +188,23 @@
   const btnPlayAudio = document.getElementById("btnPlayAudio");
   const toeicAudio = document.getElementById("toeicAudio");
   const toeicStatus = document.getElementById("toeicStatus");
-  const canvasCombined = document.getElementById("canvasCombined");
+  const canvasRef = document.getElementById("canvasRef");
+  const canvasUser = document.getElementById("canvasUser");
+  const userWaveLabel = document.getElementById("userWaveLabel");
   const grammarBanner = document.getElementById("grammarBanner");
   const shameFill = document.getElementById("shameFill");
   const shamePct = document.getElementById("shamePct");
   const btnMic = document.getElementById("btnMic");
   const btnStop = document.getElementById("btnStop");
+  const btnListen = document.getElementById("btnListen");
   const btnEval = document.getElementById("btnEval");
   const toeicResult = document.getElementById("toeicResult");
   const btnShare = document.getElementById("btnShareStory");
   const shareCanvas = document.getElementById("shareCanvas");
 
   let currentPartId = null;
+  let currentQuestionId = null;
+  let currentExamId = null;
   let currentCorrectAnswer = null;
   let audioCtx = null;
   let analyser = null;
@@ -94,6 +216,11 @@
   let recordedChunks = [];
   let lastRmsHistory = [];
   let refPeakBin = 0;
+  let wasHumanDetectedInSession = false; 
+  let recordingTimer = null; // 자동 종료 타이머
+  const RECORDING_LIMIT_SEC = 5; // 녹음 제한 시간
+  let currentRefBursts = []; // 현재 문제의 파형 시그니처
+  
   // 표준 파형의 랜덤 특성을 저장할 변수
   let refWaveParams = { f0: 0.015, m1: 8, m2: 19, a1: 40, a2: 15 };
 
@@ -111,21 +238,46 @@
       
       const isCorrect = choice === currentCorrectAnswer;
       toeicResult.classList.remove("muted");
+      
+      let praise = "정확한 청취 능력을 보유하고 계시군요.";
+      if (currentPartId === 3) praise = "뛰어난 상황 판단력과 관찰력을 보유하고 계시군요.";
+      if (currentPartId === 4) praise = "해박한 반려견 관련 법률 지식을 보유하고 계시군요.";
+
       if (isCorrect) {
-        toeicResult.innerHTML = `<h3 style="color:#38a169">정답입니다! 🐾</h3><p>정확한 청취 능력을 보유하고 계시군요.</p>`;
+        toeicResult.innerHTML = `<h3 style="color:#38a169">정답입니다! 🐾</h3><p>${praise}</p>`;
         toeicStatus.textContent = "채점 완료: 정답";
       } else {
         const labels = ["A", "B", "C", "D"];
         toeicResult.innerHTML = `<h3 style="color:#e53e3e">오답입니다. 🐕</h3><p>정답은 ${labels[currentCorrectAnswer]}입니다. 더 정진하세요.</p>`;
         toeicStatus.textContent = "채점 완료: 오답";
+        saveWrongNote();
       }
       btnShare.disabled = false;
     });
   });
 
+  async function saveWrongNote() {
+    if (!currentQuestionId) return;
+    try {
+      await fetch("/api/v1/toeic/v2/review/wrong-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUserId,
+          question_id: currentQuestionId,
+          exam_id: currentExamId
+        })
+      });
+    } catch (e) {
+      console.error("Failed to save wrong note:", e);
+    }
+  }
+
   function stopVisualizer() {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
+    if (recordingTimer) clearInterval(recordingTimer);
+    recordingTimer = null;
     if (micStream) {
       micStream.getTracks().forEach((t) => t.stop());
       micStream = null;
@@ -138,98 +290,122 @@
     dataArray = null;
   }
 
-  function drawCombinedWave(userBuf, t) {
-    if (!canvasCombined) return;
-    const w = canvasCombined.width;
-    const h = canvasCombined.height;
-    const ctx = canvasCombined.getContext("2d");
-
-    // 배경 청소
+  function drawRefWave() {
+    if (!canvasRef) return;
+    const w = canvasRef.width;
+    const h = canvasRef.height;
+    const ctx = canvasRef.getContext("2d");
     ctx.fillStyle = "#0a0d14";
     ctx.fillRect(0, 0, w, h);
 
-    // 1. 표준 음성 스펙트럼 (Reference - 파란색, '짖음' 버스트 패턴)
-    ctx.strokeStyle = "rgba(108, 166, 255, 0.5)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    
-    // 짖음(Bark) 특유의 폭발적 주기를 생성
-    const barkInterval = 2.0; // 2초마다 짖음
-    const barkPhase = t % barkInterval;
-    const isBarking = barkPhase < 0.4; // 0.4초 동안 짖음
-    const barkEnvelope = isBarking ? Math.exp(-barkPhase * 8) : 0; // 급격한 감쇄 효과
+    const centerY = h / 2;
+    const bursts = currentRefBursts.length > 0 ? currentRefBursts : [
+      { pos: 0.2, amp: 30, width: 0.08 },
+      { pos: 0.5, amp: 35, width: 0.08 },
+      { pos: 0.8, amp: 30, width: 0.08 }
+    ];
 
+    // 1. 배경 미세 노이즈 (공기 흐름 묘사)
+    ctx.strokeStyle = "rgba(108, 166, 255, 0.15)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
     for (let x = 0; x < w; x++) {
-      const freq = 0.02 + Math.sin(t * 0.1) * 0.01;
-      const wave = Math.sin(x * freq * 10) * 50 + Math.sin(x * freq * 25) * 20;
-      // 짖는 중일 때만 파동이 크게 일어남
-      const y = h / 2 + wave * barkEnvelope * (0.5 + Math.random() * 0.2);
-      
+      const y = centerY + (Math.random() - 0.5) * 10;
       if (x === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
 
-    // 2. 사용자 입력 파형 (Target - 분홍색)
-    if (userBuf) {
-      ctx.strokeStyle = "rgba(255, 107, 138, 0.9)";
+    // 2. 메인 짖음 파형 (복합 주파수)
+    ctx.strokeStyle = "rgba(108, 166, 255, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = 0; x < w; x++) {
+      let val = 0;
+      bursts.forEach(b => {
+        const dist = Math.abs(x / w - b.pos);
+        if (dist < b.width) {
+          const envelope = Math.exp(-Math.pow(dist * (1/b.width) * 2, 2));
+          // 고주파 진동(Main) + 저주파 울림(Body) + 랜덤 거칠기(Noise)
+          const mainFreq = Math.sin(x * 0.6) * b.amp;
+          const bodyFreq = Math.sin(x * 0.15) * (b.amp * 0.4);
+          const rugness = (Math.random() - 0.5) * (b.amp * 0.3);
+          val += envelope * (mainFreq + bodyFreq + rugness);
+        }
+      });
+      const y = centerY + val;
+      if (x === 0) ctx.moveTo(x, centerY + val);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  function drawUserWave(userBuf, isHuman = false) {
+    if (!canvasUser) return;
+    const w = canvasUser.width;
+    const h = canvasUser.height;
+    const ctx = canvasUser.getContext("2d");
+    ctx.fillStyle = "#0a0d14";
+    ctx.fillRect(0, 0, w, h);
+
+    if (isHuman) {
+      ctx.strokeStyle = "rgba(255, 0, 0, 1)";
       ctx.lineWidth = 2;
+      ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+      ctx.fillRect(0, 0, w, h);
+    } else {
+      ctx.strokeStyle = "rgba(255, 107, 138, 1)";
+      ctx.lineWidth = 2;
+    }
+
+    if (userBuf && userBuf.length > 0) {
       ctx.beginPath();
-      const step = Math.max(1, Math.floor(userBuf.length / w));
+      // 전체 버퍼를 화면 너비에 맞춰 압축하여 그림 (정적 파형)
+      const step = Math.ceil(userBuf.length / w);
       for (let x = 0; x < w; x++) {
-        const i = Math.min(userBuf.length - 1, x * step);
-        const y = h / 2 + userBuf[i] * (h * 0.45);
+        let max = 0;
+        for(let i=0; i<step; i++) {
+          const val = userBuf[x * step + i];
+          if(Math.abs(val) > Math.abs(max)) max = val;
+        }
+        const y = h / 2 + max * (h * 0.45);
         if (x === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
-
-    // 라벨 표시
-    ctx.font = "12px system-ui";
-    ctx.fillStyle = "rgba(108, 166, 255, 0.8)";
-    ctx.fillText("Standard Reference", 15, h - 35);
-    ctx.fillStyle = "rgba(255, 107, 138, 1)";
-    ctx.fillText("User Input (Target)", 15, h - 15);
+    
+    if (isHuman && userWaveLabel) {
+      userWaveLabel.style.background = "rgba(255, 0, 0, 0.6)";
+      userWaveLabel.style.color = "white";
+      userWaveLabel.textContent = "⚠️ HUMAN VOICE DETECTED! (분석 불가)";
+    } else if (userWaveLabel) {
+      userWaveLabel.style.background = "rgba(255, 107, 138, 0.2)";
+      userWaveLabel.style.color = "#ff6b8a";
+      userWaveLabel.textContent = userBuf ? "녹음 분석 완료" : "녹음 대기 중...";
+    }
   }
 
-  function dominantBinFromTimeDomain(buf, sr) {
-    const n = 256;
-    const slice = buf.slice(0, n);
-    const x = new Float32Array(n);
-    for (let i = 0; i < n; i++) x[i] = slice[i] * (0.5 * (1 - Math.cos((2 * Math.PI * i) / (n - 1))));
-    const re = new Float32Array(n / 2);
-    const im = new Float32Array(n / 2);
-    for (let k = 0; k < n / 2; k++) {
-      let rr = 0;
-      let ii = 0;
-      for (let i = 0; i < n; i++) {
-        const ang = (-2 * Math.PI * k * i) / n;
-        rr += x[i] * Math.cos(ang);
-        ii += x[i] * Math.sin(ang);
-      }
-      re[k] = rr;
-      im[k] = ii;
+  async function decodeAndDrawUserWave(blob) {
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const tempAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await tempAudioCtx.decodeAudioData(arrayBuffer);
+      const rawData = audioBuffer.getChannelData(0);
+      drawUserWave(rawData, wasHumanDetectedInSession);
+      await tempAudioCtx.close();
+    } catch (e) {
+      console.error("Waveform decode error:", e);
     }
-    let maxK = 2;
-    let maxM = 0;
-    for (let k = 3; k < n / 2; k++) {
-      const m = re[k] * re[k] + im[k] * im[k];
-      if (m > maxM) {
-        maxM = m;
-        maxK = k;
-      }
-    }
-    return { bin: maxK };
   }
 
   function loopDraw() {
-    if (!canvasCombined) return;
-    
-    let buf = null;
+    // 표준 가이드 파형은 항상 고정적으로 그림
+    drawRefWave();
+
     if (analyser) {
       analyser.getByteTimeDomainData(dataArray);
-      buf = new Float32Array(dataArray.length);
+      const buf = new Float32Array(dataArray.length);
       for (let i = 0; i < dataArray.length; i++) buf[i] = (dataArray[i] - 128) / 128;
       
       const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
@@ -240,31 +416,35 @@
           ? 1 - (lastRmsHistory.reduce((a, b) => a + Math.abs(b - lastRmsHistory[0]), 0) / lastRmsHistory.length)
           : 0;
       
-      const accuracy = Math.min(100, Math.max(0, (rms * 1500) * stability + (rms > 0.01 ? 20 : 0)));
+      let accuracy = (rms * 1200) * (1.2 - stability); 
+      if (rms < 0.01) accuracy = 0;
+      accuracy = Math.min(100, Math.max(0, accuracy + (rms > 0.05 ? 10 : 0)));
+
       shameFill.style.width = `${accuracy}%`;
       shamePct.textContent = `${Math.round(accuracy)}%`;
 
-      const sr = audioCtx.sampleRate;
-      const { bin: userBin } = dominantBinFromTimeDomain(buf, sr);
+      if (rms > 0.04 && stability > 0.75) wasHumanDetectedInSession = true;
+
       if (grammarBanner) {
-        if (refPeakBin > 0 && Math.abs(userBin - refPeakBin) > 14) {
+        if (wasHumanDetectedInSession) {
           grammarBanner.classList.add("show");
-          grammarBanner.textContent = "발음 분석: 주파수 불일치";
+          grammarBanner.textContent = "발음 분석: 인간 방언(Monotone) 감지됨";
         } else {
           grammarBanner.classList.remove("show");
         }
       }
     }
 
-    const t = (performance.now() - timeStart) / 1000;
-    drawCombinedWave(buf, t);
     rafId = requestAnimationFrame(loopDraw);
   }
 
   async function startMic() {
     stopVisualizer();
     lastRmsHistory = [];
+    wasHumanDetectedInSession = false; // 플래그 초기화
     grammarBanner?.classList.remove("show");
+    drawUserWave(null, false); // 유저 캔버스 초기화
+    
     micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const src = audioCtx.createMediaStreamSource(micStream);
@@ -273,11 +453,6 @@
     analyser.smoothingTimeConstant = 0.65;
     src.connect(analyser);
     dataArray = new Uint8Array(analyser.fftFrequencyBinCount);
-    const tmp = new Uint8Array(analyser.fftSize);
-    analyser.getByteTimeDomainData(tmp);
-    const f32 = new Float32Array(tmp.length);
-    for (let i = 0; i < tmp.length; i++) f32[i] = (tmp[i] - 128) / 128;
-    refPeakBin = dominantBinFromTimeDomain(f32, audioCtx.sampleRate).bin;
 
     timeStart = performance.now();
     recordedChunks = [];
@@ -290,9 +465,24 @@
     };
     mediaRecorder.start(200);
     loopDraw();
-    toeicStatus.textContent = "마이크 켜짐 · 짖은 뒤 '녹음 종료 및 채점'을 누르세요.";
+    
+    // 자동 종료 타이머 시작
+    let remaining = RECORDING_LIMIT_SEC;
+    toeicStatus.textContent = `마이크 켜짐 · 자동 종료까지 ${remaining}초...`;
+    
+    recordingTimer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(recordingTimer);
+        finalizeRecording();
+      } else {
+        toeicStatus.textContent = `마이크 켜짐 · 자동 종료까지 ${remaining}초...`;
+      }
+    }, 1000);
+
     btnMic.disabled = true;
     btnStop.disabled = false;
+    btnListen.disabled = true;
     btnEval.disabled = true;
   }
 
@@ -309,7 +499,18 @@
   }
 
   async function finalizeRecording() {
+    if (recordingTimer) {
+      clearInterval(recordingTimer);
+      recordingTimer = null;
+    }
     await stopMicKeepBlob();
+    
+    // 녹음된 전체 파형 그리기
+    if (recordedChunks.length > 0) {
+      const blob = new Blob(recordedChunks, { type: recordedChunks[0].type || "audio/webm" });
+      await decodeAndDrawUserWave(blob);
+    }
+
     if (micStream) {
       micStream.getTracks().forEach((t) => t.stop());
       micStream = null;
@@ -321,9 +522,10 @@
     analyser = null;
     btnMic.disabled = false;
     btnStop.disabled = true;
+    btnListen.disabled = recordedChunks.length === 0;
     btnEval.disabled = recordedChunks.length === 0 || currentPartId == null;
     toeicStatus.textContent = recordedChunks.length
-      ? "녹음 완료. 채점을 누르세요."
+      ? "녹음 완료. 파형 분석 결과를 확인하세요."
       : "녹음 데이터가 없습니다.";
   }
 
@@ -341,6 +543,7 @@
     if (toeicAudio) toeicAudio.src = "";
     if (choiceSection) choiceSection.classList.add("hidden");
     if (micSection) micSection.classList.add("hidden");
+    btnListen.disabled = true;
     currentCorrectAnswer = null;
     toeicResult.innerHTML = "아직 채점 전입니다.";
     toeicResult.classList.add("muted");
@@ -348,6 +551,7 @@
 
     // 시각화 초기화 및 랜덤 파형 생성
     timeStart = performance.now();
+    wasHumanDetectedInSession = false;
     refWaveParams = {
       f0: 0.01 + Math.random() * 0.015,
       m1: 5 + Math.random() * 10,
@@ -355,7 +559,8 @@
       a1: 30 + Math.random() * 30,
       a2: 10 + Math.random() * 20
     };
-    drawCombinedWave(null, 0);
+    drawRefWave(0);
+    drawUserWave(null, false);
 
     try {
       // 캐시 방지를 위해 타임스탬프 추가
@@ -365,6 +570,8 @@
       
       console.log("Loaded data:", data); // 디버깅용 로그
 
+      currentQuestionId = data.question_id || data.id;
+      currentExamId = data.exam_id || "2033-ULTIMATE";
       toeicPartTitle.textContent = data.title || "";
       
       // 질문 영역 텍스트 바인딩
@@ -372,8 +579,29 @@
       if (data.type === "speaking") {
         const script = data.script || "멍멍!";
         toeicQuestion.textContent = `[과제] 아래 스크립트로 짖으세요: "${script}" (상황: ${qContent})`;
+        
+        // 지문 기반 파형 시그니처 생성 (더 복잡하게)
+        const scriptLen = script.length;
+        const burstCount = Math.min(6, Math.max(2, Math.floor(scriptLen / 1.5))); 
+        currentRefBursts = [];
+        for(let i=0; i<burstCount; i++) {
+          const isMain = i % 2 === 0; // 주 짖음과 부차적 울림 교차
+          currentRefBursts.push({
+            pos: 0.1 + (i * 0.8 / burstCount) + (Math.random() * 0.1),
+            amp: isMain ? (20 + Math.random() * 20) : (10 + Math.random() * 10),
+            width: isMain ? (0.04 + Math.random() * 0.04) : (0.08 + Math.random() * 0.04)
+          });
+        }
+        
+        micSection.classList.remove("hidden");
+        toeicStatus.textContent = "파트 로드 완료. 마이크로 녹음 후 채점하세요.";
+        if (!rafId) loopDraw();
       } else {
         toeicQuestion.textContent = qContent;
+        choiceSection.classList.remove("hidden");
+        toeicStatus.textContent = "파트 로드 완료. 문제를 듣고/보고 정답을 선택하세요.";
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
       }
 
       // 객관식 보기 버튼 글자 업데이트
@@ -403,19 +631,6 @@
         audioSection.classList.remove("hidden");
       }
 
-      // 유형별 UI 분기
-      if (data.type === "speaking") {
-        micSection.classList.remove("hidden");
-        toeicStatus.textContent = "파트 로드 완료. 마이크로 녹음 후 채점하세요.";
-        // 마이크는 안켜져있어도 스펙트럼은 계속 돌아가게 함
-        if (!rafId) loopDraw();
-      } else {
-        choiceSection.classList.remove("hidden");
-        toeicStatus.textContent = "파트 로드 완료. 문제를 듣고/보고 정답을 선택하세요.";
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-
       toeicImage.alt = data.title || "part image";
     } catch (e) {
       toeicStatus.textContent = "실패: " + e.message;
@@ -434,6 +649,19 @@
 
   btnStop?.addEventListener("click", () => {
     finalizeRecording();
+  });
+
+  btnListen?.addEventListener("click", () => {
+    if (!recordedChunks.length) return;
+    const blob = new Blob(recordedChunks, { type: recordedChunks[0].type || "audio/webm" });
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.play();
+    toeicStatus.textContent = "내 녹음 듣는 중...";
+    audio.onended = () => {
+      toeicStatus.textContent = "녹음 재생 완료.";
+      URL.revokeObjectURL(url);
+    };
   });
 
   btnEval?.addEventListener("click", async () => {
@@ -464,6 +692,11 @@
       `;
       toeicStatus.textContent = "채점 완료.";
       btnShare.disabled = false;
+      
+      // 기술 점수가 낮으면 오답노트에 추가
+      if (sr.technical_score < 60) {
+        saveWrongNote();
+      }
     } catch (e) {
       toeicStatus.textContent = "실패: " + e.message;
     } finally {
@@ -533,6 +766,7 @@
     });
   }
 
+  checkLogin();
   loadPart(2);
 
   function wrapText(ctx, text, x, y, maxWidth, lineHeight) {

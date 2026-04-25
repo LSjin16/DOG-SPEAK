@@ -66,6 +66,8 @@ async def start_part(part_id: int):
 
     # 모든 필드를 가장 안전하게 매핑
     return {
+        "exam_id": exam.get("exam_id", "2033-ULTIMATE"),
+        "question_id": q.get("id"),
         "title": f"Part {part_id}: {q.get('subject_name', '실전 테스트')}",
         "question_text": q.get("question") or q.get("question_text") or "질문 내용이 없습니다.",
         "script": q.get("target_script") or q.get("script") or "멍멍!",
@@ -144,7 +146,7 @@ async def get_wrong_notes(user_id: str):
     """V2: 실제 오답노트 및 해설 조회"""
     user_data = db.get_user(user_id)
     exams = db.get_exams()
-    
+
     wrong_details = []
     for q_id in user_data.get("wrong_notes", []):
         for exam in exams:
@@ -154,11 +156,26 @@ async def get_wrong_notes(user_id: str):
                     "exam_title": exam["title"],
                     "question_id": q["id"],
                     "subject_name": q["subject_name"],
-                    "question": q["question"],
+                    "question": q.get("question") or q.get("question_text"),
                     "explanation": q.get("explanation", "견공 표준어 규정에 따른 해설이 필요합니다.")
                 })
                 break
     return wrong_details
+
+@router.post("/v2/review/wrong-notes")
+async def add_wrong_note(payload: Dict[str, Any]):
+    """V2: 오답 한 개 추가"""
+    user_id = payload.get("user_id", "GUEST_USER")
+    q_id = payload.get("question_id")
+    if not q_id:
+        raise HTTPException(status_code=400, detail="question_id is required")
+
+    user_data = db.get_user(user_id)
+    wrong_notes = set(user_data.get("wrong_notes", []))
+    wrong_notes.add(q_id)
+    user_data["wrong_notes"] = list(wrong_notes)
+    db.save_user(user_id, user_data)
+    return {"status": "success"}
 
 @router.get("/v2/community")
 async def get_community():
@@ -204,20 +221,27 @@ async def evaluate(
         features = get_audio_features(audio_path)
         technical_score = calculate_technical_score(features, part_id)
         
+        # 인간 목소리 판정 보정
+        is_human = technical_score < 45 or features.get("centroid_std", 1000) < 500
+
         # 2. 문과 엔진 (Gemini)
         # 파트 정보는 단순화하거나 data.py에서 가져옴
         part_info = {"title": f"Part {part_id}", "goal_description": "2033 국가고시 실전 테스트"}
         
         try:
             gemini_result = evaluate_with_gemini(audio_path, part_id, technical_score, part_info)
+            if is_human:
+                gemini_result["human_dialect_detected"] = True
+                gemini_result["level"] = min(gemini_result["level"], 2)
+                gemini_result["feedback"] = "인간의 언어적 특성이 너무 강하게 감지되었습니다. 강아지처럼 더 거칠고 다이나믹하게 짖으세요."
         except Exception as e:
             print(f"Gemini Error: {e}")
             # Gemini 실패 시 기본 피드백 제공 (시스템 중단 방지)
             gemini_result = {
-                "level": random.randint(3, 5),
-                "human_dialect_detected": False,
-                "feedback": "AI 엔진 연동 일시 오류. 기술 점수를 기반으로 임시 판정합니다.",
-                "advice": ["목소리를 더 크게 내보세요.", "발음을 명확하게 하세요."]
+                "level": 1 if is_human else random.randint(3, 5),
+                "human_dialect_detected": is_human,
+                "feedback": "인간 방언 감지됨: 발성 구조가 견공과 다릅니다." if is_human else "AI 엔진 연동 일시 오류. 기술 점수를 기반으로 임시 판정합니다.",
+                "advice": ["목소리를 더 크게 내보세요.", "성대의 떨림을 더 불규칙하게 조절하세요."]
             }
         
         return {
@@ -226,7 +250,7 @@ async def evaluate(
                 "level": gemini_result["level"],
                 "technical_score": round(technical_score, 2),
                 "is_human_dialect_detected": gemini_result["human_dialect_detected"],
-                "spectral_analysis": "FFT 분석 결과, 성대의 파동이 견공의 궤적과 일치하지 않습니다."
+                "spectral_analysis": "FFT 분석 결과, 성대의 파동이 견공의 궤적과 일치하지 않습니다. (Low Variance)" if is_human else "스펙트럼 분석 완료: 정상적인 견공 주파수 대역 감지."
             },
             "gemini_feedback": gemini_result["feedback"],
             "advice": gemini_result["advice"]

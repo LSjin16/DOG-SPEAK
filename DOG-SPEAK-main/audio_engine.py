@@ -14,6 +14,7 @@ def get_audio_features(audio_path: str):
         
         # 2. Spectral Centroid (밝기/날카로움)
         centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+        centroid_std = np.std(centroid)
         
         # 3. RMS Energy (에너지/성량)
         rms = librosa.feature.rms(y=y)
@@ -24,6 +25,7 @@ def get_audio_features(audio_path: str):
         return {
             "fft_mean": float(np.mean(fft_result)),
             "centroid_mean": float(np.mean(centroid)),
+            "centroid_std": float(centroid_std),
             "rms_max": float(np.max(rms)),
             "zcr_mean": float(np.mean(zcr)),
             "duration": float(librosa.get_duration(y=y, sr=sr))
@@ -34,6 +36,7 @@ def get_audio_features(audio_path: str):
         return {
             "fft_mean": 0.5,
             "centroid_mean": 3000.0,
+            "centroid_std": 500.0,
             "rms_max": 0.5,
             "zcr_mean": 0.1,
             "duration": 3.5
@@ -46,29 +49,28 @@ def calculate_technical_score(features, part_id: int):
     if not features:
         return 0.0
     
-    score = 70.0 # 기본 점수 (시작점)
+    score = 80.0 # 기본 점수
     
-    # 파트별 깐깐한 감점 로직
-    if part_id == 1:
-        # Part 1은 길어아 함 (최소 3초)
-        if features["duration"] < 2.0:
-            score -= 30
-        elif features["duration"] < 3.0:
-            score -= 15
+    # 짖음 판별 로직: 강아지 짖음은 주파수 변화가 다이나믹함(표준편차가 높음)
+    # 사람의 "음~", "아~" 혹은 기침소리는 상대적으로 주파수 변화가 단조롭거나 특정 대역에 쏠림
+    if features.get("centroid_std", 0) < 600:
+        # 주파수 변화가 너무 없으면(사람 목소리 가능성) 대폭 감점
+        score -= 50
+    
+    if features.get("rms_max", 0) < 0.05:
+        # 소리가 너무 작으면 감점
+        score -= 30
             
-    elif part_id == 2:
-        # Part 2는 성량이 커야 함 (에너지 측정)
-        if features["rms_max"] < 0.1:
-            score -= 40
-        elif features["rms_max"] < 0.3:
+    # 파트별 추가 감점
+    if part_id == 2:
+        # Part 2는 특히 성량이 중요
+        if features["rms_max"] < 0.2:
+            score -= 20
+        # 거친 정도(ZCR)가 너무 낮으면 짖음이 아님
+        if features["zcr_mean"] < 0.05:
             score -= 20
             
-    elif part_id == 3:
-        # Part 3는 주파수 변동성(ZCR)이 적절해야 함
-        if features["zcr_mean"] > 0.2: # 너무 거칠면 감점
-            score -= 25
-            
     # 랜덤 노이즈 추가 (시험의 불확실성/운빨 요소 가미)
-    score += np.random.uniform(-5, 5)
+    score += np.random.uniform(-3, 3)
     
     return max(0.0, min(100.0, score))

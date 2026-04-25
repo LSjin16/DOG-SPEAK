@@ -1,1 +1,17 @@
-{}
+{
+  "GUEST_USER": {
+    "history": [],
+    "wrong_notes": [
+      103
+    ]
+  },
+  "이승진": {
+    "history": [],
+    "wrong_notes": [
+      201,
+      107,
+      205,
+      203
+    ]
+  }
+}

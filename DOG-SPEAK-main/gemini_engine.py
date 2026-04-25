@@ -9,9 +9,9 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 def evaluate_with_gemini(audio_path, part_id, technical_score, part_info):
     """
-    Gemini 1.5를 사용하여 사용자의 '짖는 소리'를 정성적으로 평가합니다.
+    Gemini 1.5 Pro를 사용하여 사용자의 '짖는 소리'를 정성적으로 평가합니다.
     """
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-pro')
     
     # 1. 파일 업로드 및 대기
     gemini_file = genai.upload_file(path=audio_path)

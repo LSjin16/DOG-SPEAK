@@ -557,7 +557,13 @@
   <div class="portal-topbar">
     <div class="portal-topbar-inner">
       <span>견주와 함께 성장하는 <strong>견기출넷</strong>, 당신의 짖음을 응원합니다!</span>
-      <span id="portalDate" aria-hidden="true"></span>
+      <div style="display:flex; align-items:center; gap:15px;">
+        <div id="userInfo" style="display:none; align-items:center; gap:8px;">
+          <span>반갑습니다, <strong id="displayUserName" style="color:var(--accent);"></strong> 견주님!</span>
+          <button type="button" id="btnChangeUser" style="padding:2px 8px; font-size:11px; background:var(--muted); box-shadow:none;">로그아웃</button>
+        </div>
+        <span id="portalDate" aria-hidden="true"></span>
+      </div>
     </div>
   </div>
   <header class="portal-header">
@@ -584,6 +590,28 @@
     <div id="panel-soon" class="card hidden">
       <h2 id="soonTitle" style="margin-top:0">준비 중</h2>
       <p class="muted" style="margin:0">해당 메뉴는 견기출넷에서 순차 오픈 예정입니다. 지금은 <strong>모의시험</strong>에서 견토익을 응시해 보세요.</p>
+    </div>
+
+    <div id="panel-wrong" class="card hidden">
+      <h2 style="margin-top:0">나의 오답노트</h2>
+      <p class="muted">틀린 문제를 복습하며 완벽한 견주로 거듭나세요.</p>
+      <div id="wrongNotesList" style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+        <!-- 오답 목록이 여기에 동적으로 추가됩니다 -->
+      </div>
+    </div>
+
+    <div id="panel-explain" class="card hidden">
+      <h2 style="margin-top:0">기출해설</h2>
+      <p class="muted">역대 견토익 기출문제의 정답과 상세 해설을 확인하세요.</p>
+      <div id="examSelectArea" style="margin: 20px 0; padding: 15px; background: var(--bg-elevated); border-radius: 8px;">
+        <label for="examSelect" style="display:block; margin-bottom:8px; font-weight:700;">회차 선택:</label>
+        <select id="examSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:white;">
+          <option value="">회차를 선택하세요</option>
+        </select>
+      </div>
+      <div id="explainList" style="display: flex; flex-direction: column; gap: 20px; margin-top: 20px;">
+        <!-- 해설 내용이 여기에 동적으로 추가됩니다 -->
+      </div>
     </div>
 
     <div id="main-grid" class="main-grid">
@@ -657,9 +685,17 @@
         <!-- [입력 영역 3] 파형 분석 및 마이크 (Part 2용) -->
         <div id="micSection" class="hidden" style="margin-top: 20px;">
           <p class="muted" style="margin-top:0; font-size:12px;">AI 음성 비교 분석 (Blue: Reference / Pink: Target)</p>
-          <div class="wave-box" style="position: relative; margin-bottom:10px;">
-            <canvas id="canvasCombined" width="1000" height="160" style="display: block; width: 100%; height: 160px;"></canvas>
+          
+          <div class="wave-box" style="margin-bottom:8px; border-color: var(--accent-dim);">
+            <div class="wave-label" style="background: rgba(43, 108, 176, 0.2); color: #6ca6ff;">Standard Guide (표준 짖음 가이드)</div>
+            <canvas id="canvasRef" width="1000" height="80" style="display: block; width: 100%; height: 80px;"></canvas>
           </div>
+
+          <div class="wave-box" style="margin-bottom:10px;">
+            <div class="wave-label" id="userWaveLabel" style="background: rgba(255, 107, 138, 0.2); color: #ff6b8a;">Your Voice (실시간 입력)</div>
+            <canvas id="canvasUser" width="1000" height="80" style="display: block; width: 100%; height: 80px;"></canvas>
+          </div>
+
           <div class="shame-wrap" style="margin-bottom:15px;">
             <p class="muted" style="margin:0 0 6px; font-size:12px;">표준 발음 유사도 <span id="shamePct">0%</span></p>
             <div class="shame-bar" style="height:10px;"><div id="shameFill" class="shame-fill" style="background: linear-gradient(90deg, #6ca6ff, #48bb78);"></div></div>
@@ -667,7 +703,8 @@
           <div class="row" style="gap:10px;">
             <button type="button" id="btnMic" style="flex:1;">마이크 시작</button>
             <button type="button" id="btnStop" disabled style="flex:1;">녹음 종료</button>
-            <button type="button" id="btnEval" disabled style="flex:1; background:var(--gnb-bg);">AI 채점</button>
+            <button type="button" id="btnListen" disabled style="flex:1;">녹음 듣기</button>
+            <button type="button" id="btnEval" disabled style="flex:1; background:var(--gnb-bg);">채점</button>
           </div>
         </div>
 
@@ -786,6 +823,16 @@
     <a href="#">개인정보처리방침</a>
     <span style="display:block;margin-top:10px">© 견기출넷 데모 · 원형 UX 참고: <a href="https://rlcnf.net/" target="_blank" rel="noopener noreferrer">기출넷</a></span>
   </footer>
+  </div>
+
+  <div id="loginOverlay" class="overlay" style="display:none; z-index:1001;">
+    <div class="loader-card" style="text-align: center; width: min(92vw, 450px); padding: 40px 24px; border-radius: 24px;">
+      <div style="font-size: 50px; margin-bottom: 20px;">🐕</div>
+      <h2 style="color: white; margin: 0 0 10px; font-size: 1.8rem;">견주 본인 확인</h2>
+      <p class="muted" style="font-size:16px; margin-bottom:30px; line-height:1.5;">시험 응시 및 오답노트 기록을 위해<br>성함(또는 별명)을 입력해 주세요.</p>
+      <input type="text" id="loginNameInput" placeholder="이름을 입력하세요" style="width: 100%; height: 64px; font-size: 20px; text-align: center; margin-bottom: 20px; background: #1d263a; color: white; border: 2px solid #355d96; border-radius: 16px;">
+      <button id="btnLogin" style="width: 100%; height: 64px; font-size: 20px; border-radius: 16px; font-weight: 800; background: var(--accent);">시험장 입장하기</button>
+    </div>
   </div>
 
   <div id="loadingOverlay" class="overlay" aria-live="polite">
